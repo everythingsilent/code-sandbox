@@ -1,6 +1,7 @@
 package cool.licc.sandbox.template;
 
 import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.io.file.PathUtil;
 import cn.hutool.core.util.StrUtil;
 import cool.licc.sandbox.Sandbox;
 import cool.licc.sandbox.model.ExecuteCodeRequest;
@@ -12,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -20,7 +23,7 @@ import java.util.UUID;
 @Slf4j
 public class SandboxTemplate implements Sandbox {
     private static final String CODE_SAVE_DIR = "temp-code";
-    private static final String CODE_NAME = "test-code/Main.java";
+    private static final String CODE_NAME = "Main";
 
 
     @Override
@@ -45,6 +48,10 @@ public class SandboxTemplate implements Sandbox {
         // 3. 执行获取结果
         List<String> argsList = executeCodeRequest.getInputList();
         ExecuteCodeResponse executeCodeResponse = runCode(userCodePathDir, argsList);
+        // 执行成功返回执行UUID
+        executeCodeResponse.setMessage(String.valueOf(
+                PathUtil.getLastPathEle(Paths.get(userCodePathDir))
+        ));
 
         // 4. 清除代码文件
         if (FileUtil.exist(userCodePathDir)) {
@@ -66,7 +73,8 @@ public class SandboxTemplate implements Sandbox {
 
         // 用户代码保存
         String userCodePathDir = globalCodePath + File.separator + UUID.randomUUID();
-        String userCodePathFile = userCodePathDir + File.separator + CODE_NAME;
+        String userCodePathFile = userCodePathDir + File.separator +
+                CODE_NAME + ".java";
         FileUtil.writeString(userCode, userCodePathFile, StandardCharsets.UTF_8);
         return userCodePathDir;
     }
@@ -74,7 +82,8 @@ public class SandboxTemplate implements Sandbox {
 
     private ExecuteMessage compileCode(String userCodePathDir) throws Exception {
         // 对目标文件进行编译
-        String executeCodeFile = userCodePathDir + File.separator + CODE_NAME;
+        String executeCodeFile = userCodePathDir + File.separator +
+                CODE_NAME + ".java";
         String compileCmd = String.format("javac -encoding utf-8 %s", executeCodeFile);
         Process execCompile = Runtime.getRuntime()
                 .exec(compileCmd);
@@ -86,7 +95,10 @@ public class SandboxTemplate implements Sandbox {
     private ExecuteCodeResponse runCode(String userCodePathDir, List<String> argsList) throws Exception {
         List<ExecuteMessage> executeMessageList = new ArrayList<>();
         for (String args : argsList) {
-            String runCodeCmd = String.format("java -cp %s Main %s", userCodePathDir, args);
+            String runCodeCmd = String.format("java -cp %s %s %s",
+                    userCodePathDir,
+                    CODE_NAME,
+                    args);
             Process execRun = Runtime.getRuntime()
                     .exec(runCodeCmd);
 
