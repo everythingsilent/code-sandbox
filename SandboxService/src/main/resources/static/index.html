@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>POST JSON Form Submission with Response Formatting</title>
+    <style>
+        .response-title {
+            font-weight: bold;
+            font-size: larger;
+        }
+        .response-message {
+            margin: 0;
+            padding: 0;
+        }
+        .response-list {
+            margin-left: 20px;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<h1>Submit Your Code for Evaluation</h1>
+
+<!-- 表单内容 -->
+<form id="codeSubmissionForm">
+    <label for="inputList">Input List (comma separated):</label>
+    <input type="text" id="inputList" name="inputList" placeholder="执行代码所需参数" value="1 2,3 7" required>
+    <br><br>
+
+    <label for="code">Code:</label>
+    <br>
+    <textarea id="code" name="code" rows="10" cols="100" required>
+public class Main {
+    public static void main(String[] args) {
+        Integer var1 = Integer.parseInt(args[0]);
+        Integer var2 = Integer.parseInt(args[1]);
+        Integer ans = var1 + var2;
+        System.out.println(String.format("%d", ans));
+    }
+}
+        </textarea>
+    <br><br>
+
+    <label for="language">Programming Language:</label>
+    <select id="language" name="language" required>
+        <option value="java">Java</option>
+    </select>
+
+    <button type="submit">Submit</button>
+</form>
+
+<h2 class="response-title">Server Response:</h2>
+<div id="response"></div>
+
+<script>
+    document.getElementById('codeSubmissionForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        // 清空之前响应内容
+        document.getElementById('response').innerHTML = '';
+
+        // 收集表单数据
+        var inputList = document.getElementById('inputList').value.split(',').map(item => item.trim());
+        var code = document.getElementById('code').value; // 获取原始代码
+        var language = document.getElementById('language').value;
+
+        // 替换换行符和制表符
+        code = code.replace(/\n/g, ' ').replace(/\t/g, '    ');
+
+        var jsonBody = JSON.stringify({
+            inputList: inputList,
+            code: code,
+            language: language
+        });
+
+        // 发送 POST 请求
+        fetch('http://localhost:8080/java-native', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: jsonBody
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok.');
+                }
+                return response.json();
+            })
+            .then(data => displayResponse(data))
+            .catch(error => displayError(error));
+    });
+
+    function displayResponse(response) {
+        const responseDiv = document.getElementById('response');
+
+        // 如果状态为1，只显示红色的 message
+        if (response.status === 1) {
+            let messageParagraph = document.createElement('p');
+            messageParagraph.className = 'response-message error';
+            messageParagraph.textContent = response.message;
+            responseDiv.appendChild(messageParagraph);
+            return;
+        }
+
+        // 显示所有响应点
+        for (let key in response) {
+            let pointDiv = document.createElement('div');
+            if (Array.isArray(response[key])) {
+                let p = document.createElement('p');
+                p.textContent = key;
+                pointDiv.appendChild(p);
+
+                // 如果是数组，使用有序列表输出
+                let ul = document.createElement('ul');
+                response[key].forEach(item => {
+                    let li = document.createElement('li');
+                    li.textContent = item;
+                    ul.appendChild(li);
+                });
+                pointDiv.appendChild(ul);
+            } else {
+                // 否则使用段落输出
+                let p = document.createElement('p');
+                p.textContent = key + ': ' + JSON.stringify(response[key], null, 2);
+                pointDiv.appendChild(p);
+            }
+            responseDiv.appendChild(pointDiv);
+        }
+    }
+
+    function displayError(error) {
+        const responseDiv = document.getElementById('response');
+        let errorParagraph = document.createElement('p');
+        errorParagraph.className = 'response-message error';
+        errorParagraph.textContent = 'Error: ' + error.message;
+        responseDiv.appendChild(errorParagraph);
+    }
+</script>
+</body>
+</html>
